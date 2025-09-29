@@ -12,8 +12,8 @@ from pathlib import Path
 import sys
 import uuid
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Add current directory to path (works for Railway deployment)
+sys.path.insert(0, str(Path(__file__).parent))
 
 from core.ensemble_manager import EnsembleManager
 from core.models import ForecastResult
@@ -147,7 +147,7 @@ async def run_forecast_task(
         
         # Create result object
         responses = [response_data for response_data in forecast_data['responses']]
-        statistics = aggregator.aggregate_results([])  # Simplified for now
+        statistics = aggregator.aggregate_results(responses)
         
         await update_job_status(job_id, "running", 0.9, "Generating Excel report...")
         
@@ -159,10 +159,10 @@ async def run_forecast_task(
         
         result = {
             "ensemble_probability": ensemble_prob,
-            "total_queries": forecast_data['metadata']['total_queries'],
-            "successful_queries": forecast_data['metadata']['successful_queries'],
-            "models_used": forecast_data['metadata']['models_used'],
-            "duration": forecast_data['metadata']['duration_seconds'],
+            "total_queries": forecast_data['metadata'].get('total_queries', 0),
+            "successful_queries": forecast_data['metadata'].get('successful_responses', 0),
+            "models_used": forecast_data['metadata'].get('models_used', []),
+            "duration": forecast_data['metadata'].get('duration_seconds', 0),
             "statistics": {
                 "mean": statistics.mean,
                 "median": statistics.median,
