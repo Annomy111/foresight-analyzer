@@ -1,4 +1,4 @@
-"""FastAPI backend for Foresight Analyzer web interface"""
+"""FastAPI backend for Foresight Analyzer web interface - v2.0.1"""
 from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse

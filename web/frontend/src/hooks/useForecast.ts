@@ -32,6 +32,10 @@ export const useJobStatus = (jobId: string | null, enabled: boolean = true) => {
       // Poll every 2 seconds while running
       return 2000;
     },
+    refetchIntervalInBackground: true,
+    staleTime: 0, // Always consider stale to ensure refetch
+    refetchOnMount: true, // Fetch immediately when component mounts
+    refetchOnReconnect: true,
   });
 };
 

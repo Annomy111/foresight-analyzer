@@ -22,7 +22,7 @@ export const ForecastForm = ({ onSubmitCustom, onSubmitUkraine, isLoading }: For
     selectedModels: [] as string[],
   });
 
-  const { data: modelsData } = useModels();
+  const { data: modelsData, error: modelsError } = useModels();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +47,21 @@ export const ForecastForm = ({ onSubmitCustom, onSubmitUkraine, isLoading }: For
       });
     }
   };
+
+  // Show error if models failed to load
+  if (modelsError) {
+    return (
+      <div className="card">
+        <div className="flex items-start space-x-3 text-amber-700">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-medium">Unable to load models</h3>
+            <p className="text-sm mt-1">Using default models. The form will still work.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

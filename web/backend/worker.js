@@ -82,15 +82,20 @@ async function handleAPI(request, env) {
     });
   }
   
-  // Create forecast endpoint - forward to backend if configured
-  if (url.pathname === '/api/forecast/custom' && request.method === 'POST') {
+  // Create forecast endpoints - forward to backend if configured
+  if ((url.pathname === '/api/forecast/custom' || url.pathname === '/api/forecast/ukraine') && request.method === 'POST') {
     if (env.BACKEND_URL) {
       // Forward to external FastAPI backend
-      return fetch(`${env.BACKEND_URL}${url.pathname}`, {
+      const response = await fetch(`${env.BACKEND_URL}${url.pathname}`, {
         method: request.method,
         headers: request.headers,
         body: request.body,
       });
+      
+      // Add CORS headers to response
+      const newResponse = new Response(response.body, response);
+      newResponse.headers.set('Access-Control-Allow-Origin', '*');
+      return newResponse;
     }
     return new Response(JSON.stringify({
       error: 'Backend service not configured. Please set BACKEND_URL environment variable.'
@@ -101,6 +106,36 @@ async function handleAPI(request, env) {
         'Access-Control-Allow-Origin': '*'
       }
     });
+  }
+  
+  // Get job status endpoint
+  if (url.pathname.startsWith('/api/jobs/') && request.method === 'GET') {
+    if (env.BACKEND_URL) {
+      const response = await fetch(`${env.BACKEND_URL}${url.pathname}`, {
+        method: request.method,
+        headers: request.headers,
+      });
+      
+      // Add CORS headers to response
+      const newResponse = new Response(response.body, response);
+      newResponse.headers.set('Access-Control-Allow-Origin', '*');
+      return newResponse;
+    }
+  }
+  
+  // List jobs endpoint
+  if (url.pathname === '/api/jobs' && request.method === 'GET') {
+    if (env.BACKEND_URL) {
+      const response = await fetch(`${env.BACKEND_URL}${url.pathname}`, {
+        method: request.method,
+        headers: request.headers,
+      });
+      
+      // Add CORS headers to response
+      const newResponse = new Response(response.body, response);
+      newResponse.headers.set('Access-Control-Allow-Origin', '*');
+      return newResponse;
+    }
   }
   
   return new Response(JSON.stringify({

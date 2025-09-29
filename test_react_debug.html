@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Debug Test</title>
+    <style>
+        body { font-family: system-ui; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .error { background: #fee; border: 1px solid #fcc; padding: 12px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #efe; border: 1px solid #cfc; padding: 12px; margin: 10px 0; border-radius: 4px; }
+        pre { background: #f5f5f5; padding: 12px; overflow-x: auto; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Debug Test</h1>
+    <div id="status">Testing...</div>
+    
+    <h2>Test 1: Load Models API</h2>
+    <div id="test1"></div>
+    
+    <h2>Test 2: Load React Bundle</h2>
+    <div id="test2"></div>
+    
+    <h2>Test 3: Check Console Errors</h2>
+    <div id="test3"></div>
+    
+    <script>
+        const API_URL = 'https://foresight-analyzer-api.dieter-meier82.workers.dev';
+        
+        // Test 1: API call
+        fetch(`${API_URL}/api/models`)
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('test1').innerHTML = `
+                    <div class="success">✅ API works! Found ${data.free_models.length} free models</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            })
+            .catch(err => {
+                document.getElementById('test1').innerHTML = `
+                    <div class="error">❌ API failed: ${err.message}</div>
+                `;
+            });
+        
+        // Test 2: Load React bundle
+        fetch('https://foresight-analyzer.pages.dev/assets/index-DysjVmnv.js')
+            .then(r => r.text())
+            .then(code => {
+                const hasReact = code.includes('react');
+                const hasRouter = code.includes('router');
+                const hasAPI = code.includes(API_URL);
+                
+                document.getElementById('test2').innerHTML = `
+                    <div class="success">
+                        ✅ Bundle loaded (${Math.round(code.length/1024)}KB)<br>
+                        - Contains React: ${hasReact ? '✅' : '❌'}<br>
+                        - Contains Router: ${hasRouter ? '✅' : '❌'}<br>
+                        - Contains API URL: ${hasAPI ? '✅' : '❌'}
+                    </div>
+                `;
+            })
+            .catch(err => {
+                document.getElementById('test2').innerHTML = `
+                    <div class="error">❌ Bundle failed to load: ${err.message}</div>
+                `;
+            });
+        
+        // Test 3: Capture console errors
+        const originalError = console.error;
+        const errors = [];
+        console.error = function(...args) {
+            errors.push(args.join(' '));
+            originalError.apply(console, args);
+        };
+        
+        setTimeout(() => {
+            if (errors.length === 0) {
+                document.getElementById('test3').innerHTML = '<div class="success">✅ No console errors detected</div>';
+            } else {
+                document.getElementById('test3').innerHTML = `
+                    <div class="error">
+                        ❌ Found ${errors.length} console errors:
+                        <pre>${errors.join('\n\n')}</pre>
+                    </div>
+                `;
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

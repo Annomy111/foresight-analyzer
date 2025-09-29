@@ -82,7 +82,12 @@ export const Home = () => {
             <ResultsDisplay status={status} />
           ) : status ? (
             <ProgressDisplay status={status} isConnected={isConnected} />
-          ) : null}
+          ) : (
+            <div className="card text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-4"></div>
+              <p className="text-gray-600">Starting forecast...</p>
+            </div>
+          )}
         </div>
       )}
     </div>

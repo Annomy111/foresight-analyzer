@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test React Loading</title>
+</head>
+<body>
+    <h1>Loading React App...</h1>
+    <div id="status">Checking...</div>
+    
+    <script>
+        // Load the actual React bundle
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.src = 'https://foresight-analyzer.pages.dev/assets/index-DM_zyMNW.js';
+        
+        script.onload = () => {
+            document.getElementById('status').innerHTML = '✅ React bundle loaded!<br>Check if #root has content below:';
+            
+            // Wait a bit and check if React rendered anything
+            setTimeout(() => {
+                const root = document.getElementById('root');
+                if (root) {
+                    const hasContent = root.innerHTML.length > 0;
+                    const content = root.innerHTML.substring(0, 500);
+                    document.getElementById('status').innerHTML += `
+                        <br><br>
+                        <strong>#root exists:</strong> Yes<br>
+                        <strong>Has content:</strong> ${hasContent ? 'Yes' : 'No'}<br>
+                        <strong>Content length:</strong> ${root.innerHTML.length} characters<br>
+                        <strong>First 500 chars:</strong><br>
+                        <pre style="background: #f0f0f0; padding: 10px; max-width: 800px; overflow-x: auto;">${content || '(empty)'}</pre>
+                    `;
+                } else {
+                    document.getElementById('status').innerHTML += '<br><br><strong>ERROR:</strong> #root element not found!';
+                }
+            }, 2000);
+        };
+        
+        script.onerror = () => {
+            document.getElementById('status').innerHTML = '❌ Failed to load React bundle!';
+        };
+        
+        document.head.appendChild(script);
+        
+        // Also load the CSS
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://foresight-analyzer.pages.dev/assets/index-AKI3w5lY.css';
+        document.head.appendChild(link);
+        
+        // Create the root div
+        const rootDiv = document.createElement('div');
+        rootDiv.id = 'root';
+        document.body.appendChild(rootDiv);
+    </script>
+</body>
+</html>

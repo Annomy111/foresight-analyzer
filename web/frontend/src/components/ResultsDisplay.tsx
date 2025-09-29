@@ -35,7 +35,9 @@ export const ResultsDisplay = ({ status }: ResultsDisplayProps) => {
   if (!status.result) return null;
 
   const { result } = status;
-  const ensembleProb = Math.round(result.ensemble_probability * 100);
+  const ensembleProb = result.ensemble_probability !== null 
+    ? Math.round(result.ensemble_probability * 100) 
+    : null;
 
   // Data for probability distribution chart
   const distributionData = {
@@ -97,6 +99,48 @@ export const ResultsDisplay = ({ status }: ResultsDisplayProps) => {
     if (prob < 80) return 'Likely';
     return 'Very Likely';
   };
+
+  // Show error if no probabilities were extracted
+  if (ensembleProb === null || result.successful_queries === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="card bg-amber-50 border-2 border-amber-200">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-amber-900 mb-2">Forecast Completed with Issues</h3>
+              <p className="text-sm text-amber-800 mb-3">
+                The forecast completed but no probabilities could be extracted from the model responses. 
+                This might happen if:
+              </p>
+              <ul className="list-disc list-inside text-sm text-amber-700 space-y-1 ml-4">
+                <li>The models didn't follow the expected response format</li>
+                <li>The API keys have insufficient credits</li>
+                <li>The models are currently unavailable</li>
+              </ul>
+              <div className="mt-4 p-3 bg-white rounded border border-amber-200">
+                <p className="text-sm text-gray-700">
+                  <strong>Queries:</strong> {result.total_queries} attempted, {result.successful_queries} successful<br/>
+                  <strong>Duration:</strong> {result.duration.toFixed(2)}s<br/>
+                  <strong>Models:</strong> {result.models_used.length > 0 ? result.models_used.join(', ') : 'None'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full btn-primary"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

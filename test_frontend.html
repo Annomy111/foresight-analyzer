@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foresight Analyzer - Polling Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .card {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #60a5fa;
+            margin-top: 0;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            color: #e2e8f0;
+            box-sizing: border-box;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 12px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+        .progress {
+            width: 100%;
+            height: 30px;
+            background: #0f172a;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 12px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .status {
+            padding: 12px;
+            border-radius: 4px;
+            margin: 12px 0;
+        }
+        .status.pending { background: #1e3a8a; }
+        .status.running { background: #854d0e; }
+        .status.completed { background: #065f46; }
+        .status.failed { background: #7f1d1d; }
+        .log {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+        .log-entry {
+            margin: 4px 0;
+            padding: 4px;
+        }
+        .log-entry.poll { color: #94a3b8; }
+        .log-entry.update { color: #60a5fa; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔮 Foresight Analyzer - Polling Test</h1>
+        <p>Test if the frontend polling mechanism works with the Railway backend.</p>
+    </div>
+
+    <div class="card">
+        <h2>Create Forecast</h2>
+        <form id="forecastForm">
+            <label>Question:</label>
+            <input type="text" id="question" value="Test polling question" required>
+            
+            <label>Definition:</label>
+            <textarea id="definition" rows="2" required>Test definition</textarea>
+            
+            <label>Iterations (1 for quick test):</label>
+            <input type="number" id="iterations" value="1" min="1" max="10" required>
+            
+            <label>API Key:</label>
+            <input type="password" id="apiKey" value="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" required>
+            
+            <label>Model:</label>
+            <select id="model">
+                <option value="deepseek/deepseek-chat-v3.1:free">DeepSeek Chat (FREE)</option>
+                <option value="x-ai/grok-4-fast:free">Grok 4 Fast (FREE)</option>
+            </select>
+            
+            <button type="submit" id="submitBtn">🚀 Start Forecast</button>
+        </form>
+    </div>
+
+    <div class="card" id="progressCard" style="display:none;">
+        <h2>Progress</h2>
+        <div class="status" id="status">Pending...</div>
+        <div class="progress">
+            <div class="progress-bar" id="progressBar" style="width: 0%">0%</div>
+        </div>
+        <p id="message">Waiting to start...</p>
+        <p><strong>Job ID:</strong> <span id="jobId">-</span></p>
+        <p><strong>Poll Count:</strong> <span id="pollCount">0</span></p>
+        <p><strong>Last Update:</strong> <span id="lastUpdate">-</span></p>
+        
+        <h3>Polling Log</h3>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://foresight-analyzer-api.dieter-meier82.workers.dev';
+        let pollInterval = null;
+        let pollCount = 0;
+
+        function addLog(message, type = 'poll') {
+            const log = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateProgress(job) {
+            const progress = Math.round(job.progress * 100);
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressBar').textContent = progress + '%';
+            document.getElementById('status').textContent = job.status.toUpperCase();
+            document.getElementById('status').className = `status ${job.status}`;
+            document.getElementById('message').textContent = job.message;
+            document.getElementById('lastUpdate').textContent = new Date(job.updated_at).toLocaleTimeString();
+        }
+
+        async function pollJob(jobId) {
+            try {
+                pollCount++;
+                document.getElementById('pollCount').textContent = pollCount;
+                
+                addLog(`Poll #${pollCount}: Fetching job status...`, 'poll');
+                
+                const response = await fetch(`${API_URL}/api/jobs/${jobId}`);
+                const job = await response.json();
+                
+                addLog(`Poll #${pollCount}: Status=${job.status}, Progress=${Math.round(job.progress*100)}%`, 'update');
+                
+                updateProgress(job);
+
+                if (job.status === 'completed' || job.status === 'failed') {
+                    clearInterval(pollInterval);
+                    addLog(`✅ Forecast ${job.status}! Stopped polling.`, 'update');
+                    document.getElementById('submitBtn').disabled = false;
+                    
+                    if (job.result) {
+                        addLog(`Result: ${JSON.stringify(job.result, null, 2)}`, 'update');
+                    }
+                }
+            } catch (error) {
+                addLog(`❌ Error polling: ${error.message}`, 'update');
+            }
+        }
+
+        document.getElementById('forecastForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const question = document.getElementById('question').value;
+            const definition = document.getElementById('definition').value;
+            const iterations = parseInt(document.getElementById('iterations').value);
+            const apiKey = document.getElementById('apiKey').value;
+            const model = document.getElementById('model').value;
+            
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('progressCard').style.display = 'block';
+            document.getElementById('log').innerHTML = '';
+            pollCount = 0;
+            
+            addLog('📤 Creating forecast...', 'update');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/forecast/custom`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question,
+                        definition,
+                        iterations,
+                        api_key: apiKey,
+                        enhanced_prompts: false,
+                        models: [model]
+                    })
+                });
+                
+                const job = await response.json();
+                const jobId = job.job_id;
+                
+                document.getElementById('jobId').textContent = jobId;
+                addLog(`✅ Forecast created! Job ID: ${jobId}`, 'update');
+                addLog('🔄 Starting polling every 2 seconds...', 'update');
+                
+                // Initial update
+                updateProgress(job);
+                
+                // Start polling every 2 seconds
+                pollInterval = setInterval(() => pollJob(jobId), 2000);
+                
+            } catch (error) {
+                addLog(`❌ Error creating forecast: ${error.message}`, 'update');
+                document.getElementById('submitBtn').disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
