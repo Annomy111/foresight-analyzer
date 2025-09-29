@@ -1,0 +1,19 @@
+{
+  "name": "foresight_analyzer",
+  "version": "1.0.0",
+  "description": "An AI-powered probabilistic forecasting system implementing the \"Wisdom of the Silicon Crowd\" methodology for geopolitical and strategic foresight analysis. This system uses ensemble forecasting across multiple large language models via the OpenRouter API to generate calibrated probability estimates with stunning visual enhancements.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "wrangler": "^4.40.2"
+  }
+}

@@ -1,0 +1,51 @@
+name = "foresight-analyzer-api"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+workers_dev = true
+
+# Account details (update with your Cloudflare account ID)
+# account_id = "your_account_id_here"
+
+[env.production]
+name = "foresight-analyzer-api"
+workers_dev = false
+
+# Durable Objects for job management
+[[durable_objects.bindings]]
+name = "FORECAST_PROCESSOR"
+class_name = "ForecastProcessor"
+script_name = "foresight-analyzer-api"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ForecastProcessor"]
+
+# KV Namespaces for caching
+[[kv_namespaces]]
+binding = "FORECAST_CACHE"
+id = "your_kv_namespace_id"
+preview_id = "your_preview_kv_id"
+
+# R2 Buckets for Excel file storage
+[[r2_buckets]]
+binding = "FORECAST_RESULTS"
+bucket_name = "foresight-results"
+preview_bucket_name = "foresight-results-preview"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "development"
+
+# Secrets (use wrangler secret put to set these)
+# OPENROUTER_API_KEY
+# BACKEND_URL (optional external FastAPI service)
+
+# Build configuration
+[build]
+command = ""
+watch_dirs = []
+
+# Routes
+routes = [
+  { pattern = "api.foresight-analyzer.workers.dev", zone_name = "workers.dev" }
+]

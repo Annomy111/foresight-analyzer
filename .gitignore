@@ -106,3 +106,16 @@ $RECYCLE.BIN/
 # Backup files
 *.tar.gz
 foresight_backup_*.tar.gz
+
+# Web deployment
+web/frontend/node_modules/
+web/frontend/dist/
+web/frontend/.env
+web/backend/node_modules/
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# Python
+*.pyc
+__pycache__/
