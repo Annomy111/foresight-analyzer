@@ -82,15 +82,44 @@ async function handleAPI(request, env) {
     });
   }
   
-  // Create forecast endpoint
+  // Create forecast endpoint - forward to backend if configured
   if (url.pathname === '/api/forecast/custom' && request.method === 'POST') {
-    // Get Durable Object for forecast processing
-    const id = env.FORECAST_PROCESSOR.idFromName('default');
-    const stub = env.FORECAST_PROCESSOR.get(id);
-    return stub.fetch(request);
+    if (env.BACKEND_URL) {
+      // Forward to external FastAPI backend
+      return fetch(`${env.BACKEND_URL}${url.pathname}`, {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+      });
+    }
+    return new Response(JSON.stringify({
+      error: 'Backend service not configured. Please set BACKEND_URL environment variable.'
+    }), {
+      status: 503,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
   }
   
-  return new Response('Endpoint not implemented yet', { status: 501 });
+  return new Response(JSON.stringify({
+    message: 'AI Foresight Analyzer API',
+    version: '2.0',
+    endpoints: [
+      'GET /api/models - List available models',
+      'POST /api/forecast/custom - Create custom forecast',
+      'POST /api/forecast/ukraine - Create Ukraine forecast',
+      'GET /api/jobs/{id} - Get job status',
+      'GET /api/jobs - List all jobs'
+    ]
+  }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    }
+  });
 }
 
 async function handleWebSocket(request, env) {

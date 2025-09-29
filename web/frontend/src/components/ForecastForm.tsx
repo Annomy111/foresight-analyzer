@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useModels } from '../hooks/useForecast';
-import { AlertCircle, ChevronDown, Info, Sparkles } from 'lucide-react';
-import { ForecastRequest, UkraineForecastRequest } from '../lib/api';
+import { AlertCircle, Info, Sparkles } from 'lucide-react';
+import type { ForecastRequest, UkraineForecastRequest } from '../lib/api';
 
 interface ForecastFormProps {
   onSubmitCustom: (request: ForecastRequest) => void;

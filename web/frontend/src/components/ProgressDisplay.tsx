@@ -1,4 +1,4 @@
-import { JobStatus } from '../lib/api';
+import type { JobStatus } from '../lib/api';
 import { CheckCircle2, XCircle, Loader2, Wifi, WifiOff, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 

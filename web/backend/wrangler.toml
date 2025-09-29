@@ -3,34 +3,32 @@ main = "worker.js"
 compatibility_date = "2024-01-01"
 workers_dev = true
 
-# Account details (update with your Cloudflare account ID)
-# account_id = "your_account_id_here"
+# Account details
+account_id = "a867271c1fc772b3fbd26f1c347892ff"
 
 [env.production]
 name = "foresight-analyzer-api"
 workers_dev = false
 
-# Durable Objects for job management
-[[durable_objects.bindings]]
-name = "FORECAST_PROCESSOR"
-class_name = "ForecastProcessor"
-script_name = "foresight-analyzer-api"
+# Durable Objects for job management (requires paid plan - commented out for now)
+# [[durable_objects.bindings]]
+# name = "FORECAST_PROCESSOR"
+# class_name = "ForecastProcessor"
+# script_name = "foresight-analyzer-api"
 
-[[migrations]]
-tag = "v1"
-new_classes = ["ForecastProcessor"]
+# [[migrations]]
+# tag = "v1"
+# new_sqlite_classes = ["ForecastProcessor"]
 
 # KV Namespaces for caching
 [[kv_namespaces]]
 binding = "FORECAST_CACHE"
-id = "your_kv_namespace_id"
-preview_id = "your_preview_kv_id"
+id = "861ba6d6fe9448d09a058405fa8d34a1"
 
-# R2 Buckets for Excel file storage
-[[r2_buckets]]
-binding = "FORECAST_RESULTS"
-bucket_name = "foresight-results"
-preview_bucket_name = "foresight-results-preview"
+# R2 Buckets for Excel file storage (optional - uncomment when needed)
+# [[r2_buckets]]
+# binding = "FORECAST_RESULTS"
+# bucket_name = "foresight-results"
 
 # Environment variables
 [vars]
@@ -40,12 +38,4 @@ ENVIRONMENT = "development"
 # OPENROUTER_API_KEY
 # BACKEND_URL (optional external FastAPI service)
 
-# Build configuration
-[build]
-command = ""
-watch_dirs = []
-
-# Routes
-routes = [
-  { pattern = "api.foresight-analyzer.workers.dev", zone_name = "workers.dev" }
-]
+# Routes will be automatically assigned by Cloudflare

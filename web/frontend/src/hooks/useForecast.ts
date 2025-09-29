@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback } from 'react';
-import { forecastApi, ForecastRequest, UkraineForecastRequest, JobStatus } from '../lib/api';
+import { forecastApi } from '../lib/api';
+import type { ForecastRequest, UkraineForecastRequest, JobStatus } from '../lib/api';
 
 // Hook for creating custom forecast
 export const useCreateCustomForecast = () => {

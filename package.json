@@ -8,12 +8,21 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha tests/e2e/**/*.test.js --timeout 60000",
+    "test:homepage": "mocha tests/e2e/homepage.test.js --timeout 60000",
+    "test:form": "mocha tests/e2e/forecast-form.test.js --timeout 60000",
+    "test:api": "mocha tests/e2e/api-endpoints.test.js --timeout 60000",
+    "test:visual": "mocha tests/e2e/visual-accessibility.test.js --timeout 60000",
+    "test:all": "npm test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/node": "^24.6.0",
+    "chai": "^6.2.0",
+    "mocha": "^11.7.2",
+    "puppeteer": "^24.22.3",
     "wrangler": "^4.40.2"
   }
 }

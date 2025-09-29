@@ -80,9 +80,9 @@ export const Home = () => {
           {/* Progress or Results */}
           {status?.status === 'completed' && status.result ? (
             <ResultsDisplay status={status} />
-          ) : (
+          ) : status ? (
             <ProgressDisplay status={status} isConnected={isConnected} />
-          )}
+          ) : null}
         </div>
       )}
     </div>

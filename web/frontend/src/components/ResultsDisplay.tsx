@@ -1,4 +1,4 @@
-import { JobStatus } from '../lib/api';
+import type { JobStatus } from '../lib/api';
 import { Download, TrendingUp, Target, BarChart3, CheckCircle } from 'lucide-react';
 import {
   Chart as ChartJS,
