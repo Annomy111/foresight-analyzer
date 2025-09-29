@@ -1,0 +1,111 @@
+{
+  "test_metadata": {
+    "timestamp": "2025-09-22T02:18:57.363246",
+    "question": "Mit welcher Wahrscheinlichkeit kommt es im Jahr 2026 zu einem Waffenstillstand in der Ukraine?",
+    "definition": "Ein 'Waffenstillstand' wird für dieses Experiment definiert als eine von beiden Konfliktparteien (Regierung der Ukraine und Regierung der Russischen Föderation) offiziell verkündete und für mindestens 30 aufeinanderfolgende Tage eingehaltene Einstellung aller Kampfhandlungen an allen Fronten. Der Beginn des 30-Tage-Zeitraums muss zwischen dem 1. Januar 2026, 00:00 Uhr, und dem 31. Dezember 2026, 23:59 Uhr Kiewer Zeit, liegen. Kleinere, lokale Scharmützel, die innerhalb von 24 Stunden beendet sind und von keiner der beiden Parteien als Beendigung des Waffenstillstands deklariert werden, gelten nicht als Bruch.",
+    "timeframe": "2026-01-01 bis 2026-12-31",
+    "models": [
+      "google/gemini-2.5-pro-preview"
+    ],
+    "iterations": 2
+  },
+  "original_results": {
+    "prompt_length": 5343,
+    "model_results": {
+      "google/gemini-2.5-pro-preview": {
+        "responses": [
+          {
+            "iteration": 1,
+            "response_time": 68.87778520584106,
+            "status": "success",
+            "probability": 42.0,
+            "content_length": 13712,
+            "enhanced_data": {}
+          },
+          {
+            "iteration": 2,
+            "response_time": 65.09476399421692,
+            "status": "success",
+            "probability": 29.0,
+            "content_length": 12602,
+            "enhanced_data": {}
+          }
+        ],
+        "success_rate": 1.0,
+        "probability_count": 2,
+        "avg_probability": 35.5,
+        "probability_std": 9.192388155425117,
+        "avg_response_time": 66.98627460002899,
+        "avg_content_length": 13157.0
+      }
+    },
+    "aggregate_metrics": {
+      "overall_success_rate": 1.0,
+      "overall_avg_probability": 35.5,
+      "overall_probability_std": 9.192388155425117,
+      "overall_avg_response_time": 66.98627460002899,
+      "probability_range": [
+        29.0,
+        42.0
+      ]
+    }
+  },
+  "enhanced_results": {
+    "prompt_length": 8293,
+    "model_results": {
+      "google/gemini-2.5-pro-preview": {
+        "responses": [
+          {
+            "iteration": 1,
+            "response_time": 70.11960124969482,
+            "status": "success",
+            "probability": 38.86,
+            "content_length": 10379,
+            "enhanced_data": {}
+          },
+          {
+            "iteration": 2,
+            "response_time": 76.63126277923584,
+            "status": "success",
+            "probability": 34.0,
+            "content_length": 12272,
+            "enhanced_data": {}
+          }
+        ],
+        "success_rate": 1.0,
+        "probability_count": 2,
+        "avg_probability": 36.43,
+        "probability_std": 3.4365389565666207,
+        "avg_response_time": 73.37543201446533,
+        "avg_content_length": 11325.5,
+        "confidence_ranges_extracted": 0,
+        "scenarios_extracted": 0,
+        "quality_indicators_extracted": 0,
+        "uncertainty_factors_extracted": 0,
+        "avg_quality_score": null
+      }
+    },
+    "aggregate_metrics": {
+      "overall_success_rate": 1.0,
+      "overall_avg_probability": 36.43,
+      "overall_probability_std": 3.4365389565666207,
+      "overall_avg_response_time": 73.37543201446533,
+      "probability_range": [
+        34.0,
+        38.86
+      ]
+    }
+  },
+  "comparison_metrics": {
+    "success_rate_improvement": 0.0,
+    "probability_consistency_improvement": 5.755849198858497,
+    "response_time_impact": 6.38915741443634,
+    "enhanced_features_success": 0.0,
+    "overall_assessment": {
+      "improvements": [
+        "Better consistency"
+      ],
+      "recommendation": "Mixed results - needs more testing"
+    }
+  }
+}
