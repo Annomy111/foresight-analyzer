@@ -1,0 +1,13 @@
+{
+  "name": "deployment_checks",
+  "version": "1.0.0",
+  "main": "check_deploy.js",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "check": "node check_deploy.js"
+  },
+  "dependencies": {
+    "puppeteer": "^22.11.1"
+  }
+}

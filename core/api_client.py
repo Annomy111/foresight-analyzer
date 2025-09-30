@@ -7,10 +7,8 @@ from datetime import datetime
 import aiohttp
 from aiohttp import ClientTimeout, ClientError
 import backoff
-from openai import AsyncOpenAI
 
 from config.settings import get_settings
-from config.models import get_model_info, MODEL_REGISTRY
 from core.cache_manager import CacheManager
 
 logger = logging.getLogger(__name__)
@@ -28,12 +26,15 @@ class OpenRouterClient:
             use_cache: Whether to use response caching (default: True)
         """
         settings = get_settings()
+        self.settings = settings
         self.api_key = api_key or settings.api.api_key
         self.base_url = settings.api.base_url
         self.timeout = settings.api.timeout
         self.retry_attempts = settings.api.retry_attempts
         self.retry_delay = settings.api.retry_delay
         self.use_cache = use_cache
+        self.referer = settings.api.referer
+        self.title = settings.api.title
 
         # Initialize cache manager
         if self.use_cache:
@@ -41,15 +42,7 @@ class OpenRouterClient:
         else:
             self.cache = None
 
-        # Initialize OpenAI client with OpenRouter configuration
-        self.client = AsyncOpenAI(
-            base_url=self.base_url,
-            api_key=self.api_key,
-            default_headers={
-                "HTTP-Referer": "https://github.com/foresight-analyzer",
-                "X-Title": "Foresight Analyzer"
-            }
-        )
+        self._base_endpoint = f"{self.base_url}/chat/completions"
 
     @backoff.on_exception(
         backoff.expo,
@@ -88,62 +81,51 @@ class OpenRouterClient:
                 cached_response['response_source'] = 'cache'
                 return cached_response
 
-        # Apply model-specific token requirements from registry
-        model_info = get_model_info(model)
+        # Apply model-specific token requirements
+        model_lower = model.lower()
 
-        # Use configured max_tokens or override if provided is larger
-        configured_max = model_info.max_tokens
-        if configured_max > max_tokens:
-            max_tokens = configured_max
-            logger.debug(f"Using configured max_tokens for {model_info.name}: {max_tokens}")
-
-        # Apply temperature from model configuration if not overridden
-        if temperature == 0.7:  # Default value
-            temperature = model_info.temperature_default
-            logger.debug(f"Using configured temperature for {model_info.name}: {temperature}")
-
-        # Log model details
-        if model_info.is_free:
-            logger.info(f"Using free tier model: {model_info.name}")
-        if model_info.notes:
-            logger.debug(f"Model notes: {model_info.notes}")
+        # Adjust token limits for specific free-tier models
+        if 'gemini' in model_lower:
+            max_tokens = max(max_tokens, 8000)  # Ensure Gemini Flash free tier has enough context
+            logger.debug(f"Adjusting max_tokens for Gemini to {max_tokens}")
+        elif 'llama' in model_lower:
+            max_tokens = max(max_tokens, 4000)
+            logger.debug(f"Adjusting max_tokens for Llama variant to {max_tokens}")
+        elif 'deepseek' in model_lower:
+            max_tokens = max(max_tokens, 4000)
+            logger.debug(f"Adjusting max_tokens for DeepSeek variant to {max_tokens}")
+        elif 'qwen' in model_lower:
+            max_tokens = max(max_tokens, 4000)
+            logger.debug(f"Adjusting max_tokens for Qwen variant to {max_tokens}")
 
         start_time = datetime.now()
 
         try:
-            # Prepare request parameters
-            request_params = {
+            payload: Dict[str, Any] = {
                 "model": model,
                 "messages": [
                     {"role": "user", "content": prompt}
                 ],
                 "temperature": temperature,
-                "max_tokens": max_tokens,
-                "timeout": self.timeout
+                "max_tokens": max_tokens
             }
 
-            # Add web search configuration if enabled
             if enable_web_search:
-                request_params["extra_body"] = {
+                payload["extra_body"] = {
                     "web_search": {
                         "engine": "native"
                     }
                 }
 
-            response = await self.client.chat.completions.create(**request_params)
+            response = await self._post_completion(payload)
 
             # Calculate response time
             response_time = (datetime.now() - start_time).total_seconds()
 
-            # Extract the response
-            content = response.choices[0].message.content if response.choices else ""
-
-            # Log response statistics
-            response_length = len(content) if content else 0
-            logger.debug(f"Response from {model}: {response_length} characters")
-
-            # Initialize is_rejected early to avoid reference errors
-            is_rejected = False
+            choices = response.get("choices", [])
+            content = ""
+            if choices:
+                content = choices[0].get("message", {}).get("content", "") or ""
 
             # Check if the model rejected the prompt (safety filter)
             rejection_patterns = [
@@ -158,31 +140,12 @@ class OpenRouterClient:
             content_lower = content.lower() if content else ""
             is_rejected = any(pattern in content_lower for pattern in rejection_patterns)
 
-            # Warn if response is suspiciously short
-            if response_length < 100 and not is_rejected:
-                logger.warning(f"Short response from {model}: only {response_length} characters")
-
-            # Check for empty or insufficient responses
-            if not content or len(content) < 10:
-                logger.warning(f"Empty or insufficient response from {model}")
-                # Mark as error for retry handling
-                return {
-                    "model": model,
-                    "timestamp": start_time.isoformat(),
-                    "response_time": response_time,
-                    "content": content,
-                    "probability": None,
-                    "error": "Empty or insufficient response",
-                    "status": "empty_response",
-                    "response_source": "api"
-                }
-
             if is_rejected:
                 logger.warning(f"Model {model} appears to have rejected the prompt due to safety filters")
                 logger.debug(f"Rejection response snippet: {content[:200]}")
 
             # Parse the response for PROGNOSE value
-            probability = self._extract_probability(content, model)
+            probability = self._extract_probability(content)
 
             # Log extraction failure for debugging
             if probability is None and not is_rejected:
@@ -196,12 +159,10 @@ class OpenRouterClient:
 
             # Extract log probabilities if available
             log_probs = None
-            if hasattr(response.choices[0], 'logprobs') and response.choices[0].logprobs:
-                try:
-                    # Convert to serializable format
-                    log_probs = str(response.choices[0].logprobs)
-                except:
-                    log_probs = None
+            if choices:
+                log_probs = choices[0].get("logprobs")
+                if log_probs is not None:
+                    log_probs = json.dumps(log_probs)
 
             result = {
                 "model": model,
@@ -211,9 +172,9 @@ class OpenRouterClient:
                 "probability": probability,
                 "log_probabilities": log_probs,
                 "usage": {
-                    "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-                    "completion_tokens": response.usage.completion_tokens if response.usage else 0,
-                    "total_tokens": response.usage.total_tokens if response.usage else 0
+                    "prompt_tokens": response.get("usage", {}).get("prompt_tokens", 0),
+                    "completion_tokens": response.get("usage", {}).get("completion_tokens", 0),
+                    "total_tokens": response.get("usage", {}).get("total_tokens", 0)
                 },
                 "status": "rejected" if is_rejected else "success",
                 "response_source": "api"
@@ -239,29 +200,15 @@ class OpenRouterClient:
             }
 
         except Exception as e:
-            error_str = str(e)
-            logger.error(f"Error querying {model}: {error_str}")
-
-            # Detect rate limiting (429 errors) for smart retry logic
-            status = "error"
-            if "429" in error_str or "rate" in error_str.lower() or "too many requests" in error_str.lower():
-                status = "rate_limited"
-                logger.warning(f"Model {model} is rate limited - consider switching to alternative model")
-            elif "404" in error_str or "not found" in error_str.lower():
-                status = "not_found"
-                logger.error(f"Model {model} endpoint not found - may need to update model list")
-            elif "400" in error_str or "invalid" in error_str.lower():
-                status = "invalid_model"
-                logger.error(f"Model {model} ID is invalid - check model configuration")
-
+            logger.error(f"Error querying {model}: {str(e)}")
             return {
                 "model": model,
                 "timestamp": start_time.isoformat(),
                 "response_time": (datetime.now() - start_time).total_seconds(),
                 "content": None,
                 "probability": None,
-                "error": error_str,
-                "status": status
+                "error": str(e),
+                "status": "error"
             }
 
     async def batch_query(
@@ -299,7 +246,7 @@ class OpenRouterClient:
 
         return results
 
-    def _extract_probability(self, content: str, model: str = "") -> Optional[float]:
+    def _extract_probability(self, content: str) -> Optional[float]:
         """
         Enhanced probability extraction supporting multiple languages and formats
 
@@ -368,143 +315,7 @@ class OpenRouterClient:
             # Make content case-insensitive for pattern matching
             content_lower = content.lower()
 
-            # PRIORITY 3: Look for model-specific patterns
-            # DeepSeek R1 patterns (includes TNG and all variants)
-            if 'deepseek' in model.lower() or 'tng' in model.lower() or 'r1' in model.lower() or 'mai-ds' in model.lower():
-                deepseek_patterns = [
-                    r'\*\*PROGNOSE:\s*(\d+(?:\.\d+)?)\s*%\*\*',  # **PROGNOSE: X%**
-                    r'PROGNOSE:\s*(\d+(?:\.\d+)?)\s*%',  # PROGNOSE: X%
-                    r'probability\s+is\s+\*\*(\d+(?:\.\d+)?)\s*%\*\*',  # probability is **X%**
-                    r'Therefore,?\s+the\s+probability\s+is\s+(\d+(?:\.\d+)?)\s*%',
-                    r'I\s+estimate\s+(?:the\s+probability\s+)?(?:to\s+be\s+)?(\d+(?:\.\d+)?)\s*%',
-                    r'My\s+assessment:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Estimated\s+probability:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'The\s+final\s+probability\s+is\s+(\d+(?:\.\d+)?)\s*%',
-                    r'Concluding\s+probability:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Overall\s+likelihood:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'estimated\s+at\s+\*\*(\d+(?:\.\d+)?)\s*%\*\*',  # estimated at **X%**
-                ]
-                for pattern in deepseek_patterns:
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        value = float(match.group(1))
-                        if 0 <= value <= 100:
-                            logger.debug(f"Found DeepSeek/R1-specific probability: {value}%")
-                            return value
-
-            # Qwen patterns (includes GLM and Kimi)
-            if 'qwen' in model.lower() or 'glm' in model.lower() or 'kimi' in model.lower():
-                qwen_patterns = [
-                    r'My\s+final\s+estimate:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'I\s+conclude\s+(?:with\s+)?(?:a\s+)?(\d+(?:\.\d+)?)\s*%',
-                    r'Overall\s+probability:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Assessment:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Final\s+assessment:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Conclusion:\s*(\d+(?:\.\d+)?)\s*%'
-                ]
-                for pattern in qwen_patterns:
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        value = float(match.group(1))
-                        if 0 <= value <= 100:
-                            logger.debug(f"Found Qwen/GLM-specific probability: {value}%")
-                            return value
-
-            # GPT-OSS patterns
-            if 'gpt-oss' in model.lower():
-                gpt_oss_patterns = [
-                    r'Final\s+probability:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'My\s+estimate\s+is\s+(\d+(?:\.\d+)?)\s*%',
-                    r'I\s+predict\s+(\d+(?:\.\d+)?)\s*%',
-                    r'Probability\s+assessment:\s*(\d+(?:\.\d+)?)\s*%'
-                ]
-                for pattern in gpt_oss_patterns:
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        value = float(match.group(1))
-                        if 0 <= value <= 100:
-                            logger.debug(f"Found GPT-OSS-specific probability: {value}%")
-                            return value
-
-            # Venice/Uncensored patterns
-            if 'venice' in model.lower() or 'uncensored' in model.lower():
-                venice_patterns = [
-                    r'My\s+uncensored\s+assessment:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Straight\s+answer:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Direct\s+probability:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Honest\s+estimate:\s*(\d+(?:\.\d+)?)\s*%'
-                ]
-                for pattern in venice_patterns:
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        value = float(match.group(1))
-                        if 0 <= value <= 100:
-                            logger.debug(f"Found Venice-specific probability: {value}%")
-                            return value
-
-            # Agentica/Coder patterns
-            if 'agentica' in model.lower() or 'coder' in model.lower():
-                coder_patterns = [
-                    r'Code\s+analysis\s+probability:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Technical\s+assessment:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Analytical\s+result:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Computed\s+probability:\s*(\d+(?:\.\d+)?)\s*%'
-                ]
-                for pattern in coder_patterns:
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        value = float(match.group(1))
-                        if 0 <= value <= 100:
-                            logger.debug(f"Found Agentica-specific probability: {value}%")
-                            return value
-
-            # NVIDIA Nemotron patterns
-            if 'nemotron' in model.lower() or 'nvidia' in model.lower():
-                nvidia_patterns = [
-                    r'Model\s+prediction:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Neural\s+assessment:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Computed\s+likelihood:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'NVIDIA\s+forecast:\s*(\d+(?:\.\d+)?)\s*%'
-                ]
-                for pattern in nvidia_patterns:
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        value = float(match.group(1))
-                        if 0 <= value <= 100:
-                            logger.debug(f"Found NVIDIA-specific probability: {value}%")
-                            return value
-
-            # Nous/DeepHermes patterns
-            if 'nous' in model.lower() or 'deephermes' in model.lower():
-                nous_patterns = [
-                    r'Hermes\s+assessment:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Deep\s+analysis\s+result:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Thoughtful\s+estimate:\s*(\d+(?:\.\d+)?)\s*%',
-                    r'Reasoned\s+probability:\s*(\d+(?:\.\d+)?)\s*%'
-                ]
-                for pattern in nous_patterns:
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        value = float(match.group(1))
-                        if 0 <= value <= 100:
-                            logger.debug(f"Found Nous-specific probability: {value}%")
-                            return value
-
-            # Look for JSON-like formats
-            json_patterns = [
-                r'\{"probability":\s*(\d+(?:\.\d+)?)\}',
-                r'"probability":\s*"?(\d+(?:\.\d+)?)"?%?',
-                r'probability:\s*(\d+(?:\.\d+)?)\s*%?'
-            ]
-            for pattern in json_patterns:
-                match = re.search(pattern, content, re.IGNORECASE)
-                if match:
-                    value = float(match.group(1))
-                    if 0 <= value <= 100:
-                        logger.debug(f"Found JSON-format probability: {value}%")
-                        return value
-
-            # PRIORITY 4: Look for forecast section keywords
+            # PRIORITY 3: Look for forecast section keywords
             forecast_patterns = [
                 "prognose:",
                 "forecast:",
@@ -515,9 +326,7 @@ class OpenRouterClient:
                 "ensemble probability:",
                 "result:",
                 "answer:",
-                "conclusion:",
-                "estimate:",
-                "assessment:"
+                "conclusion:"
             ]
 
             # Look for forecast section keywords
@@ -728,9 +537,12 @@ class OpenRouterClient:
             True if connection successful
         """
         try:
+            # Use primary enabled model for connectivity test to avoid unauthorized model errors
+            primary_model = get_settings().models.enabled_models[0]
+
             # Try a simple query to test the connection
             response = await self.query_model(
-                model="openai/gpt-3.5-turbo",
+                model=primary_model,
                 prompt="Say 'test successful' if you can read this.",
                 max_tokens=10,
                 enable_web_search=False  # No need for web search on connection test
@@ -759,6 +571,49 @@ class OpenRouterClient:
         except Exception as e:
             logger.error(f"Failed to fetch models: {e}")
 
-        # Return list from our model registry if API call fails
-        logger.info("Using model registry as fallback for available models")
-        return list(MODEL_REGISTRY.keys())
+        # Return default list if API call fails
+        return [
+            "google/gemini-2.0-flash-exp",
+            "openai/gpt-oss-20b",
+            "meta-llama/llama-3.3-70b-instruct",
+            "x-ai/grok-4-fast",
+            "deepseek/deepseek-chat-v3.1",
+            "qwen/qwen-2.5-72b-instruct"
+        ]
+
+    async def _post_completion(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Call OpenRouter chat completion endpoint via curl (HTTP/2)."""
+        curl_cmd = [
+            "curl",
+            "-sS",
+            "--http2",
+            "-X",
+            "POST",
+            self._base_endpoint,
+            "-H",
+            f"Authorization: Bearer {self.api_key}",
+            "-H",
+            "Content-Type: application/json",
+            "-H",
+            f"HTTP-Referer: {self.referer}",
+            "-H",
+            f"X-Title: {self.title}"
+        ]
+
+        process = await asyncio.create_subprocess_exec(
+            *curl_cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        stdout, stderr = await process.communicate(json.dumps(payload).encode("utf-8"))
+
+        if process.returncode != 0:
+            error_msg = stderr.decode("utf-8", errors="ignore").strip()
+            raise RuntimeError(f"curl request failed (code {process.returncode}): {error_msg}")
+
+        try:
+            return json.loads(stdout.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Failed to parse OpenRouter response: {exc}: {stdout[:200]}") from exc

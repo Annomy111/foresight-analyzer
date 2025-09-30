@@ -8,6 +8,66 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+FREE_MODEL_DEFAULTS = [
+    "google/gemini-2.0-flash-exp",
+    "openai/gpt-oss-20b",
+    "meta-llama/llama-3.3-70b-instruct",
+    "x-ai/grok-4-fast",
+    "deepseek/deepseek-chat-v3.1",
+    "qwen/qwen-2.5-72b-instruct"
+]
+
+MODEL_FREE_MAP = {
+    "google/gemini-2.5-pro-preview": "google/gemini-2.0-flash-exp",
+    "openai/gpt-5-chat": "openai/gpt-oss-20b",
+    "openai/gpt-4-turbo-preview": "openai/gpt-oss-20b",
+    "openai/gpt-oss-20b": "openai/gpt-oss-20b",
+    "anthropic/claude-opus-4.1": "meta-llama/llama-3.3-70b-instruct",
+    "anthropic/claude-3-opus-20240229": "meta-llama/llama-3.3-70b-instruct",
+    "x-ai/grok-4": "x-ai/grok-4-fast",
+    "x-ai/grok-beta": "x-ai/grok-4-fast",
+    "deepseek/deepseek-chat": "deepseek/deepseek-chat-v3.1"
+}
+
+FREE_MODEL_SET = set(FREE_MODEL_DEFAULTS + list(MODEL_FREE_MAP.values()) + ["openai/gpt-oss-20b"])
+
+
+def normalize_model_list(models: Optional[List[str]]) -> List[str]:
+    """Normalize configured model list to free-tier equivalents."""
+    if not models:
+        return FREE_MODEL_DEFAULTS.copy()
+
+    normalized: List[str] = []
+    seen = set()
+
+    for model in models:
+        if not model:
+            continue
+        cleaned = model.strip()
+        if not cleaned:
+            continue
+
+        cleaned = MODEL_FREE_MAP.get(cleaned, cleaned)
+
+        if cleaned not in FREE_MODEL_SET:
+            # Drop non-free models
+            continue
+
+        if cleaned not in seen:
+            normalized.append(cleaned)
+            seen.add(cleaned)
+
+    if not normalized:
+        return FREE_MODEL_DEFAULTS.copy()
+
+    for fallback in FREE_MODEL_DEFAULTS:
+        if fallback not in seen:
+            normalized.append(fallback)
+            seen.add(fallback)
+
+    return normalized
+
+
 class APIConfig(BaseModel):
     """API configuration settings"""
     api_key: str = Field(..., description="OpenRouter API key")
@@ -15,6 +75,8 @@ class APIConfig(BaseModel):
     timeout: int = Field(default=120, description="Request timeout in seconds")
     retry_attempts: int = Field(default=3, description="Number of retry attempts")
     retry_delay: int = Field(default=5, description="Delay between retries in seconds")
+    referer: str = Field(default="https://foresight-analyzer.pages.dev", description="HTTP referer header for OpenRouter")
+    title: str = Field(default="Foresight Analyzer", description="X-Title header for OpenRouter")
 
     @validator('api_key')
     def api_key_not_empty(cls, v):
@@ -22,18 +84,10 @@ class APIConfig(BaseModel):
             raise ValueError("Valid OpenRouter API key required")
         return v
 
+
 class ModelConfig(BaseModel):
     """Model configuration settings"""
-    enabled_models: List[str] = Field(
-        default=[
-            "google/gemini-2.0-flash-exp",
-            "openai/gpt-4-turbo-preview",
-            "anthropic/claude-3-opus-20240229",
-            "x-ai/grok-beta",
-            "deepseek/deepseek-chat"
-        ],
-        description="List of models to use"
-    )
+    enabled_models: List[str] = Field(default=FREE_MODEL_DEFAULTS.copy(), description="List of models to use")
     iterations_per_model: int = Field(default=10, description="Number of iterations per model")
     concurrent_requests: int = Field(default=3, description="Number of concurrent API requests")
 
@@ -42,6 +96,7 @@ class ModelConfig(BaseModel):
         if v < 1 or v > 100:
             raise ValueError("Iterations must be between 1 and 100")
         return v
+
 
 class OutputConfig(BaseModel):
     """Output configuration settings"""
@@ -53,6 +108,7 @@ class OutputConfig(BaseModel):
     def create_output_dir(cls, v):
         v.mkdir(parents=True, exist_ok=True)
         return v
+
 
 class Settings(BaseModel):
     """Main settings container"""
@@ -69,14 +125,16 @@ class Settings(BaseModel):
             base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
             timeout=int(os.getenv("REQUEST_TIMEOUT", "120")),
             retry_attempts=int(os.getenv("RETRY_ATTEMPTS", "3")),
-            retry_delay=int(os.getenv("RETRY_DELAY", "5"))
+            retry_delay=int(os.getenv("RETRY_DELAY", "5")),
+            referer=os.getenv("OPENROUTER_REFERER", "https://foresight-analyzer.pages.dev"),
+            title=os.getenv("OPENROUTER_TITLE", "Foresight Analyzer")
         )
 
         # Model configuration
         models_str = os.getenv("ENABLED_MODELS", "")
-        enabled_models = [m.strip() for m in models_str.split(",") if m.strip()]
+        enabled_models = normalize_model_list([m.strip() for m in models_str.split(",") if m.strip()])
         if not enabled_models:
-            enabled_models = ModelConfig().enabled_models
+            enabled_models = normalize_model_list(ModelConfig().enabled_models)
 
         model_config = ModelConfig(
             enabled_models=enabled_models,
@@ -93,8 +151,10 @@ class Settings(BaseModel):
 
         return cls(api=api_config, models=model_config, output=output_config)
 
+
 # Singleton instance
 settings = None
+
 
 def get_settings() -> Settings:
     """Get or create settings instance"""
