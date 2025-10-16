@@ -223,17 +223,17 @@ async def run_forecast_task(
         for response_data in forecast_data['responses']:
             db.save_model_response(
                 job_id=job_id,
-                model_name=response_data.model_name,
-                iteration_number=response_data.iteration,
-                probability=response_data.probability,
-                reasoning=response_data.reasoning,
-                base_rate=getattr(response_data, 'base_rate', None),
-                case_rate=getattr(response_data, 'case_rate', None),
-                confidence=getattr(response_data, 'confidence', None),
-                response_time_ms=response_data.response_time_ms,
-                tokens_used=getattr(response_data, 'tokens_used', None),
-                success=True,
-                error_message=None
+                model_name=response_data.get('model_name', response_data.get('model', 'unknown')),
+                iteration_number=response_data.get('iteration', 1),
+                probability=response_data.get('probability', 0.0),
+                reasoning=response_data.get('reasoning', ''),
+                base_rate=response_data.get('base_rate'),
+                case_rate=response_data.get('case_rate'),
+                confidence=response_data.get('confidence'),
+                response_time_ms=response_data.get('response_time_ms', 0),
+                tokens_used=response_data.get('tokens_used'),
+                success=response_data.get('status') == 'success',
+                error_message=response_data.get('error')
             )
 
         # Aggregate results

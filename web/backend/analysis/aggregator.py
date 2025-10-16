@@ -30,24 +30,40 @@ class ForecastAggregator:
         self.consistency_scorer = ConsistencyScorer()
         self.bayesian_aggregator = BayesianAggregator()
 
-    def aggregate_results(self, responses: List[ModelResponse]) -> EnsembleStatistics:
+    def aggregate_results(self, responses: List[Any]) -> EnsembleStatistics:
         """
         Aggregate forecast results into comprehensive statistics
 
         Args:
-            responses: List of model responses
+            responses: List of model responses (ModelResponse objects or dictionaries)
 
         Returns:
             EnsembleStatistics with aggregated data
         """
+        # Handle both ModelResponse objects and dictionaries
+        def get_status(r):
+            if isinstance(r, dict):
+                return r.get('status', '')
+            return r.status.value if hasattr(r, 'status') else ''
+
+        def get_probability(r):
+            if isinstance(r, dict):
+                return r.get('probability')
+            return r.probability if hasattr(r, 'probability') else None
+
+        def get_model(r):
+            if isinstance(r, dict):
+                return r.get('model_name', r.get('model', 'unknown'))
+            return r.model if hasattr(r, 'model') else 'unknown'
+
         # Separate successful responses
-        successful_responses = [r for r in responses if r.status.value == "success"]
-        valid_probabilities = [r.probability for r in successful_responses if r.probability is not None]
+        successful_responses = [r for r in responses if get_status(r) == "success"]
+        valid_probabilities = [get_probability(r) for r in successful_responses if get_probability(r) is not None]
 
         # Group by model
         model_groups = defaultdict(list)
         for response in responses:
-            model_groups[response.model].append(response)
+            model_groups[get_model(response)].append(response)
 
         # Calculate per-model statistics
         model_stats = {}
@@ -78,19 +94,30 @@ class ForecastAggregator:
 
         return stats_obj
 
-    def _calculate_model_statistics(self, model: str, responses: List[ModelResponse]) -> ModelStatistics:
+    def _calculate_model_statistics(self, model: str, responses: List[Any]) -> ModelStatistics:
         """
         Calculate statistics for a single model
 
         Args:
             model: Model identifier
-            responses: List of responses for this model
+            responses: List of responses for this model (ModelResponse objects or dictionaries)
 
         Returns:
             ModelStatistics object
         """
-        successful_responses = [r for r in responses if r.status.value == "success"]
-        valid_probabilities = [r.probability for r in successful_responses if r.probability is not None]
+        # Helper functions for handling both objects and dicts
+        def get_status(r):
+            if isinstance(r, dict):
+                return r.get('status', '')
+            return r.status.value if hasattr(r, 'status') else ''
+
+        def get_probability(r):
+            if isinstance(r, dict):
+                return r.get('probability')
+            return r.probability if hasattr(r, 'probability') else None
+
+        successful_responses = [r for r in responses if get_status(r) == "success"]
+        valid_probabilities = [get_probability(r) for r in successful_responses if get_probability(r) is not None]
 
         if not valid_probabilities:
             # Return empty statistics if no valid probabilities
