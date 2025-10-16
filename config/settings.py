@@ -5,20 +5,20 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, validator
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (allow .env values to override existing vars)
+project_root = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=project_root / ".env", override=True)
 
 FREE_MODEL_DEFAULTS = [
-    "google/gemini-2.0-flash-exp",
     "openai/gpt-oss-20b",
     "meta-llama/llama-3.3-70b-instruct",
     "x-ai/grok-4-fast",
     "deepseek/deepseek-chat-v3.1",
-    "qwen/qwen-2.5-72b-instruct"
+    "qwen/qwen-2.5-72b-instruct",
+    "mistralai/mistral-nemo"
 ]
 
 MODEL_FREE_MAP = {
-    "google/gemini-2.5-pro-preview": "google/gemini-2.0-flash-exp",
     "openai/gpt-5-chat": "openai/gpt-oss-20b",
     "openai/gpt-4-turbo-preview": "openai/gpt-oss-20b",
     "openai/gpt-oss-20b": "openai/gpt-oss-20b",

@@ -17,7 +17,6 @@ export const ForecastForm = ({ onSubmitCustom, onSubmitUkraine, isLoading }: For
     timeframe: '',
     context: '',
     iterations: 10,
-    apiKey: '',
     enhancedPrompts: false,
     selectedModels: [] as string[],
   });
@@ -30,7 +29,6 @@ export const ForecastForm = ({ onSubmitCustom, onSubmitUkraine, isLoading }: For
     if (mode === 'ukraine') {
       onSubmitUkraine({
         by_date: formData.timeframe || undefined,
-        api_key: formData.apiKey || undefined,
         iterations: formData.iterations,
         enhanced_prompts: formData.enhancedPrompts,
       });
@@ -42,7 +40,6 @@ export const ForecastForm = ({ onSubmitCustom, onSubmitUkraine, isLoading }: For
         context: formData.context || undefined,
         models: formData.selectedModels.length > 0 ? formData.selectedModels : undefined,
         iterations: formData.iterations,
-        api_key: formData.apiKey || undefined,
         enhanced_prompts: formData.enhancedPrompts,
       });
     }
@@ -189,25 +186,6 @@ export const ForecastForm = ({ onSubmitCustom, onSubmitUkraine, isLoading }: For
             </p>
           </div>
         )}
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            OpenRouter API Key (Optional)
-          </label>
-          <input
-            type="password"
-            value={formData.apiKey}
-            onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-            className="input-field"
-            placeholder="sk-or-v1-..."
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Leave empty to use server default. Get your key from{' '}
-            <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
-              openrouter.ai
-            </a>
-          </p>
-        </div>
 
         {modelsData && (
           <div>

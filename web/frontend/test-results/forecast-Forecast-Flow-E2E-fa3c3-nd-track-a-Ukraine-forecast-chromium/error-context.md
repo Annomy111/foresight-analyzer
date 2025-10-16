@@ -1,0 +1,69 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - link "AI Foresight Analyzer Wisdom of the Silicon Crowd" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img [ref=e9]
+        - generic [ref=e17]:
+          - heading "AI Foresight Analyzer" [level=1] [ref=e18]
+          - paragraph [ref=e19]: Wisdom of the Silicon Crowd
+      - navigation [ref=e20]:
+        - link "New Forecast" [ref=e21] [cursor=pointer]:
+          - /url: /
+          - img [ref=e22]
+          - generic [ref=e30]: New Forecast
+        - link "History" [ref=e31] [cursor=pointer]:
+          - /url: /history
+          - img [ref=e32]
+          - generic [ref=e36]: History
+        - link "Models" [ref=e37] [cursor=pointer]:
+          - /url: /models
+          - img [ref=e38]
+          - generic [ref=e40]: Models
+        - link "Settings" [ref=e41] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e42]
+          - generic [ref=e45]: Settings
+      - link [ref=e46] [cursor=pointer]:
+        - /url: https://github.com/Annomy111/foresight-analyzer
+        - img [ref=e47]
+  - main [ref=e50]:
+    - generic [ref=e51]:
+      - generic [ref=e52]:
+        - heading "Create New Forecast" [level=1] [ref=e53]
+        - paragraph [ref=e54]: Generate probabilistic forecasts using ensemble AI models with Super-Forecaster methodology
+      - generic [ref=e55]:
+        - button "Create New Forecast" [ref=e56] [cursor=pointer]:
+          - img [ref=e57]
+          - generic [ref=e59]: Create New Forecast
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - generic [ref=e62]:
+              - img [ref=e63]
+              - generic [ref=e67]: Real-time updates active
+            - generic [ref=e68]:
+              - img [ref=e69]
+              - generic [ref=e72]: Started about 2 hours ago
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - img [ref=e75]
+              - generic [ref=e79]:
+                - heading "Failed" [level=3] [ref=e80]
+                - paragraph [ref=e81]: "Error: EnsembleManager.run_ensemble_forecast() got an unexpected keyword argument 'progress_callback'"
+              - generic [ref=e82]:
+                - generic [ref=e83]: 0%
+                - generic [ref=e84]: Progress
+            - generic [ref=e86]:
+              - text: "Job ID:"
+              - code [ref=e87]: 87c70709-344f-486a-9a40-a436c3bbd058
+          - generic [ref=e88]:
+            - heading "Error Details" [level=4] [ref=e89]
+            - paragraph [ref=e90]: "Error: EnsembleManager.run_ensemble_forecast() got an unexpected keyword argument 'progress_callback'"
+  - contentinfo [ref=e91]:
+    - generic [ref=e93]:
+      - paragraph [ref=e94]: AI Foresight Analyzer v2.0 - Implementing "Wisdom of the Silicon Crowd" methodology
+      - paragraph [ref=e95]: Based on research by Schoenegger et al. (2024)
+```

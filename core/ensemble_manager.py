@@ -44,7 +44,8 @@ class EnsembleManager:
         models: Optional[List[str]] = None,
         iterations: int = None,
         timeframe: Optional[str] = None,
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        progress_callback: Optional[callable] = None
     ) -> Dict[str, Any]:
         """
         Run a complete ensemble forecast
@@ -56,6 +57,7 @@ class EnsembleManager:
             iterations: Iterations per model (uses config default if None)
             timeframe: Time period for forecast
             context: Additional context
+            progress_callback: Optional callback function to report progress
 
         Returns:
             Complete forecast results with all responses
@@ -144,6 +146,16 @@ class EnsembleManager:
 
                 all_results.extend(model_results)
 
+                # Call progress callback if provided
+                if progress_callback:
+                    completed_models = models.index(model) + 1
+                    total_models = len(models)
+                    progress_percent = (completed_models / total_models) * 0.7  # 70% for model queries
+                    await progress_callback(
+                        progress=0.1 + progress_percent,  # Start at 10%, add up to 70%
+                        message=f"Completed {model_name} ({completed_models}/{total_models} models)"
+                    )
+
                 # Show interim success rate
                 successful = len([r for r in model_results if r.get('status') == 'success'])
                 console.print(f"[green]✓ {model_name}: {successful}/{iterations} successful[/green]")
@@ -171,6 +183,12 @@ class EnsembleManager:
             "responses": all_results,
             "summary": self._generate_summary(all_results)
         }
+
+        summary = forecast_result["summary"]
+        forecast_result["metadata"].update({
+            "successful_queries": summary.get("successful_queries", 0),
+            "failed_queries": summary.get("failed_queries", 0)
+        })
 
         return forecast_result
 

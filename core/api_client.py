@@ -119,6 +119,27 @@ class OpenRouterClient:
 
             response = await self._post_completion(payload)
 
+            if "error" in response:
+                error_info = response["error"]
+                message = error_info.get("message", "Unknown error")
+                logger.error(f"OpenRouter returned error for {model}: {message}")
+                return {
+                    "model": model,
+                    "timestamp": start_time.isoformat(),
+                    "response_time": (datetime.now() - start_time).total_seconds(),
+                    "content": None,
+                    "probability": None,
+                    "log_probabilities": None,
+                    "usage": {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "total_tokens": 0
+                    },
+                    "error": message,
+                    "status": "error",
+                    "response_source": "api"
+                }
+
             # Calculate response time
             response_time = (datetime.now() - start_time).total_seconds()
 
@@ -586,7 +607,7 @@ class OpenRouterClient:
         curl_cmd = [
             "curl",
             "-sS",
-            "--http2",
+            "--http1.1",
             "-X",
             "POST",
             self._base_endpoint,
@@ -597,7 +618,9 @@ class OpenRouterClient:
             "-H",
             f"HTTP-Referer: {self.referer}",
             "-H",
-            f"X-Title: {self.title}"
+            f"X-Title: {self.title}",
+            "--data-binary",
+            "@-"
         ]
 
         process = await asyncio.create_subprocess_exec(

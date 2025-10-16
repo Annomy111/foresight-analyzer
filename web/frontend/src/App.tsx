@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
+import { History } from './pages/History';
 import './index.css';
 
 // Create a client
@@ -21,7 +22,7 @@ function App() {
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/history" element={<ComingSoon page="History" />} />
+            <Route path="/history" element={<History />} />
             <Route path="/models" element={<ComingSoon page="Models" />} />
             <Route path="/settings" element={<ComingSoon page="Settings" />} />
           </Routes>
