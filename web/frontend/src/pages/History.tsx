@@ -1,26 +1,11 @@
 import { useState, useEffect } from 'react';
 import { forecastApi } from '../lib/api';
+import type { JobStatus } from '../lib/api';
 import { Clock, TrendingUp, CheckCircle2, XCircle, Trash2, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
-interface Job {
-  job_id: string;
-  question: string;
-  forecast_type: string;
-  status: string;
-  progress: number;
-  created_at: string;
-  completed_at?: string;
-  duration_seconds?: number;
-  result?: {
-    ensemble_probability: number;
-    successful_queries: number;
-    total_queries: number;
-  };
-}
-
 export const History = () => {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -39,8 +24,9 @@ export const History = () => {
         status: statusFilter === 'all' ? undefined : statusFilter,
         search: searchTerm || undefined,
       };
-      const data = await forecastApi.getHistory(params);
-      setJobs(data.jobs);
+      const response = await forecastApi.getHistory(params);
+      // API returns { jobs: [...], total: ..., limit: ..., offset: ... }
+      setJobs(response.jobs || response);
     } catch (error) {
       console.error('Failed to load history:', error);
     } finally {

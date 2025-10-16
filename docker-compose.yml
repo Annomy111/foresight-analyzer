@@ -1,0 +1,74 @@
+# Foresight Analyzer - Docker Compose for Local Development & Testing
+version: '3.8'
+
+services:
+  # Backend API Service
+  backend:
+    build:
+      context: ./web/backend
+      dockerfile: Dockerfile
+    container_name: foresight-backend
+    ports:
+      - "8001:8001"
+    environment:
+      # OpenRouter API Configuration
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+      - OPENROUTER_REFERER=http://localhost:5173
+      - OPENROUTER_TITLE=Foresight Analyzer
+
+      # Model Configuration
+      - ENABLED_MODELS=openai/gpt-oss-20b,meta-llama/llama-3.3-70b-instruct,x-ai/grok-4-fast,deepseek/deepseek-chat-v3.1,qwen/qwen-2.5-72b-instruct,mistralai/mistral-nemo
+
+      # Analysis Settings
+      - ITERATIONS_PER_MODEL=10
+      - CONCURRENT_REQUESTS=3
+      - REQUEST_TIMEOUT=120
+      - RETRY_ATTEMPTS=3
+      - RETRY_DELAY=5
+
+      # Output Configuration
+      - OUTPUT_DIR=/app/data/results
+      - EXCEL_FILENAME_PREFIX=foresight_analysis
+      - SAVE_RAW_RESPONSES=true
+
+      # Logging
+      - LOG_LEVEL=INFO
+      - LOG_FILE=/app/data/logs/foresight.log
+    volumes:
+      # Persist database and results
+      - ./web/backend/data:/app/data
+      - ./web/backend/database:/app/database
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - foresight-network
+
+  # Frontend (optional - for full-stack local testing)
+  # Uncomment if you want to run frontend in Docker as well
+  # frontend:
+  #   build:
+  #     context: ./web/frontend
+  #     dockerfile: Dockerfile
+  #   container_name: foresight-frontend
+  #   ports:
+  #     - "5173:80"
+  #   environment:
+  #     - VITE_API_URL=http://localhost:8001
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - foresight-network
+
+networks:
+  foresight-network:
+    driver: bridge
+
+volumes:
+  backend-data:
+    driver: local

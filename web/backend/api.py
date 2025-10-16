@@ -295,13 +295,38 @@ async def run_forecast_task(
 
 @app.get("/")
 async def root():
-    """Health check endpoint"""
+    """Root endpoint"""
     return {
         "service": "AI Foresight Analyzer API",
         "version": "3.0.0",
         "status": "operational",
         "database": "connected"
     }
+
+
+@app.get("/health")
+async def health():
+    """Health check endpoint for Docker and monitoring"""
+    try:
+        # Check database connection
+        db_status = "healthy"
+        try:
+            # Simple database check - just list jobs without errors
+            db.list_jobs(limit=1)
+        except Exception as e:
+            db_status = f"unhealthy: {str(e)}"
+            logger.error(f"Database health check failed: {e}")
+
+        return {
+            "status": "healthy" if db_status == "healthy" else "unhealthy",
+            "service": "foresight-analyzer-api",
+            "version": "3.0.0",
+            "database": db_status,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
 
 @app.post("/api/forecast/custom", response_model=JobStatus)
