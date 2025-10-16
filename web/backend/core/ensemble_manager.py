@@ -44,7 +44,8 @@ class EnsembleManager:
         models: Optional[List[str]] = None,
         iterations: int = None,
         timeframe: Optional[str] = None,
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        progress_callback: Optional[callable] = None
     ) -> Dict[str, Any]:
         """
         Run a complete ensemble forecast
@@ -56,6 +57,7 @@ class EnsembleManager:
             iterations: Iterations per model (uses config default if None)
             timeframe: Time period for forecast
             context: Additional context
+            progress_callback: Optional async callback for progress updates
 
         Returns:
             Complete forecast results with all responses
@@ -107,16 +109,26 @@ class EnsembleManager:
 
         # Run queries for all models with enhanced progress tracking
         all_results = []
+        completed_queries = 0
+        total_queries = len(models) * iterations
 
         with visual.create_enhanced_progress() as progress:
             main_task = progress.add_task(
                 "🎯 Overall Analysis Progress",
-                total=len(models) * iterations
+                total=total_queries
             )
 
-            for model in models:
+            for model_idx, model in enumerate(models):
                 model_name = model.split('/')[-1]
                 console.print(f"\n[cyan]🤖 Querying {model_name}...[/cyan]")
+
+                # Report progress via callback
+                if progress_callback:
+                    progress_percent = (completed_queries / total_queries) * 0.8  # 0-80% for model queries
+                    await progress_callback(
+                        progress_percent,
+                        f"Querying {model_name} ({model_idx + 1}/{len(models)})"
+                    )
 
                 model_task = progress.add_task(
                     f"🔄 {model_name}",
@@ -134,6 +146,15 @@ class EnsembleManager:
 
                 # Update overall progress
                 progress.update(main_task, advance=iterations)
+                completed_queries += iterations
+
+                # Report progress after each model completes
+                if progress_callback:
+                    progress_percent = (completed_queries / total_queries) * 0.8
+                    await progress_callback(
+                        progress_percent,
+                        f"Completed {model_name} - {completed_queries}/{total_queries} queries done"
+                    )
 
                 # Add model metadata
                 for result in model_results:
@@ -152,6 +173,10 @@ class EnsembleManager:
         duration = (end_time - start_time).total_seconds()
 
         console.print(f"\n[green]✓ Ensemble forecast completed in {duration:.1f}s[/green]")
+
+        # Report final progress
+        if progress_callback:
+            await progress_callback(0.9, "Compiling results...")
 
         # Compile results
         forecast_result = {
